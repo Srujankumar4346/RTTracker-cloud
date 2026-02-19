@@ -1,0 +1,154 @@
+from flask import Flask, render_template, Response, request, jsonify, send_from_directory
+import cv2
+from ultralytics import YOLO
+import os
+import time
+
+app = Flask(__name__)
+
+model = YOLO("yolov8n.pt")
+
+camera = cv2.VideoCapture(0)
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+object_data = {}
+fps_value = 0
+
+
+# ---------------- WEBCAM ----------------
+def generate_frames():
+    global object_data, fps_value
+
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+
+        start = time.time()
+        results = model(frame, imgsz=320)[0]
+
+        object_data = {}
+
+        for box in results.boxes:
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            conf = float(box.conf[0])
+            cls = int(box.cls[0])
+            label = model.names[cls]
+
+            object_data[label] = object_data.get(label, 0) + 1
+
+            cv2.rectangle(frame, (x1,y1), (x2,y2), (0,255,0),2)
+            cv2.putText(frame, f"{label} {conf:.2f}",
+                        (x1,y1-10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,(0,255,255),2)
+
+        fps_value = round(1/(time.time()-start),2)
+
+        cv2.putText(frame, f"FPS: {fps_value}",
+                    (20,40),
+                    cv2.FONT_HERSHEY_SIMPLEX,0.8,
+                    (0,255,255),2)
+
+        ret, buffer = cv2.imencode('.jpg', frame)
+        frame = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
+@app.route('/')
+def home():
+    return render_template("index.html")
+
+
+@app.route('/video')
+def video():
+    return Response(generate_frames(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+# ---------------- IMAGE DETECTION ----------------
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    if 'image' not in request.files:
+        return jsonify({"error": "No file"}), 400
+
+    file = request.files['image']
+    path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(path)
+
+    image = cv2.imread(path)
+    results = model(image)[0]
+
+    for box in results.boxes:
+        x1,y1,x2,y2 = map(int, box.xyxy[0])
+        cls = int(box.cls[0])
+        label = model.names[cls]
+        conf = float(box.conf[0])
+
+        cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
+        cv2.putText(image,f"{label} {conf:.2f}",
+                    (x1,y1-10),
+                    cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,255,255),2)
+
+    output_path = os.path.join(UPLOAD_FOLDER, "output.jpg")
+    cv2.imwrite(output_path, image)
+
+    return jsonify({"url": "/uploads/output.jpg"})
+
+
+# ---------------- VIDEO DETECTION ----------------
+@app.route('/upload_video', methods=['POST'])
+def upload_video():
+    if 'video' not in request.files:
+        return jsonify({"error": "No file"}), 400
+
+    file = request.files['video']
+    input_path = os.path.join(UPLOAD_FOLDER, file.filename)
+    file.save(input_path)
+
+    cap = cv2.VideoCapture(input_path)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    output_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
+
+    out = cv2.VideoWriter(output_path, fourcc, 20.0,
+                          (int(cap.get(3)), int(cap.get(4))))
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        results = model(frame)[0]
+
+        for box in results.boxes:
+            x1,y1,x2,y2 = map(int, box.xyxy[0])
+            cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+
+        out.write(frame)
+
+    cap.release()
+    out.release()
+
+    return jsonify({"url": "/uploads/output.mp4"})
+
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+@app.route('/analytics_data')
+def analytics_data():
+    return jsonify({
+        "objects": object_data,
+        "fps": fps_value,
+        "total": sum(object_data.values())
+    })
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>RTTracker - AI Vision Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">
+            <div class="logo-circle"></div>
+            RTTracker
+        </div>
+
+        <nav>
+            <a href="javascript:void(0)" onclick="showSection('home')">Home</a>
+            <a href="javascript:void(0)" onclick="showSection('simulation')">Simulation</a>
+            <a href="javascript:void(0)" onclick="showSection('analytics')">Analytics</a>
+            <a href="javascript:void(0)" onclick="showSection('team')">Team</a>
+        </nav>
+    </header>
+
+    <!-- ================= HOME ================= -->
+    <section id="home" class="page-section">
+
+        <p class="status">● SYSTEM ACTIVE • TRACKING ENABLED</p>
+
+        <h1>
+            <span class="gradient">Real-Time</span><br>
+            Object Tracking
+        </h1>
+
+        <p class="subtitle">
+            Vision-Based AI Analytics for Real-Time Object Tracking
+        </p>
+
+        <div class="btn-group">
+            <button class="btn-primary" type="button" onclick="showSection('simulation')">
+                View Simulation
+            </button>
+            <button class="btn-outline" type="button" onclick="showSection('analytics')">
+                Learn More
+            </button>
+        </div>
+
+    </section>
+
+    <!-- ================= SIMULATION ================= -->
+    <section id="simulation" class="page-section" style="display:none;">
+
+        <h2 class="section-title">Real-Time Object Tracking</h2>
+
+        <div class="simulation-panel">
+
+            <div class="mode-select">
+                <button type="button" onclick="showMode('webcam')">Webcam</button>
+                <button type="button" onclick="showMode('image')">Image</button>
+                <button type="button" onclick="showMode('video')">Video</button>
+            </div>
+
+            <!-- Webcam -->
+            <div id="webcam-mode" class="mode-box">
+                <img src="/video" width="100%">
+            </div>
+
+            <!-- Image -->
+            <div id="image-mode" class="mode-box" style="display:none;">
+                <input type="file" id="imageInput">
+                <button type="button" onclick="uploadImage()">Detect</button>
+                <br><br>
+                <img id="resultImage" width="100%">
+            </div>
+
+            <!-- Video -->
+            <div id="video-mode" class="mode-box" style="display:none;">
+                <input type="file" id="videoInput">
+                <button type="button" onclick="uploadVideo()">Detect Video</button>
+                <br><br>
+                <video id="resultVideo" width="100%" controls></video>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- ================= ANALYTICS ================= -->
+    <section id="analytics" class="page-section" style="display:none;">
+
+        <h2 class="section-title">
+            Analytics <span class="gradient">Dashboard</span>
+        </h2>
+
+        <div class="analytics-grid">
+
+            <div class="card">
+                <h3>Total Objects</h3>
+                <div id="totalObjects" class="big-number">0</div>
+            </div>
+
+            <div class="card">
+                <h3>FPS</h3>
+                <div id="fpsValue" class="big-number green">0</div>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- ================= TEAM ================= -->
+    <section id="team" class="page-section" style="display:none;">
+
+        <h2 class="section-title">Project Team</h2>
+
+        <div class="team-grid">
+
+            <div class="team-card">
+                <h3>Sangepu Srujan Kumar</h3>
+                <p>Team Lead / Backend</p>
+            </div>
+
+            <div class="team-card">
+                <h3>K Sai Vignesh Reddy</h3>
+                <p>AI / Model Training</p>
+            </div>
+
+            <div class="team-card">
+                <h3>Matam Siddu</h3>
+                <p>Frontend Developer</p>
+            </div>
+
+            <div class="team-card">
+                <h3>P Minihas</h3>
+                <p>Testing & Documentation</p>
+            </div>
+
+        </div>
+
+        <p class="guide">Guide: P SWETHA</p>
+
+    </section>
+
+    <!-- ================= SCRIPT ================= -->
+    <script>
+
+        document.addEventListener("DOMContentLoaded", function () {
+
+            window.showSection = function (id) {
+                document.querySelectorAll(".page-section").forEach(sec => {
+                    sec.style.display = "none";
+                });
+
+                let selected = document.getElementById(id);
+                if (selected) {
+                    selected.style.display = "block";
+                }
+            };
+
+            window.showMode = function (mode) {
+                document.querySelectorAll(".mode-box").forEach(m => {
+                    m.style.display = "none";
+                });
+
+                let selected = document.getElementById(mode + "-mode");
+                if (selected) {
+                    selected.style.display = "block";
+                }
+            };
+
+        });
+
+
+        function uploadImage() {
+            let input = document.getElementById("imageInput");
+
+            if (input.files.length === 0) {
+                alert("Select image first!");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("image", input.files[0]);
+
+            fetch("/upload_image", {
+                method: "POST",
+                body: formData
+            })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("resultImage").src =
+                        data.url + "?t=" + new Date().getTime();
+                });
+        }
+
+
+        function uploadVideo() {
+            let input = document.getElementById("videoInput");
+
+            if (input.files.length === 0) {
+                alert("Select video first!");
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("video", input.files[0]);
+
+            fetch("/upload_video", {
+                method: "POST",
+                body: formData
+            })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("resultVideo").src =
+                        data.url + "?t=" + new Date().getTime();
+                });
+        }
+
+
+        function loadAnalytics() {
+            fetch('/analytics_data')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("totalObjects").innerText = data.total;
+                    document.getElementById("fpsValue").innerText = data.fps;
+                });
+        }
+
+        setInterval(loadAnalytics, 2000);
+
+    </script>
+
+</body>
+
+</html>

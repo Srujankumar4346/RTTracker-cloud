@@ -1,29 +1,48 @@
-from flask import Flask, render_template, Response, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import cv2
 from ultralytics import YOLO
 import os
-import time
+import torch
+import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 
+# ---------------- MODEL ----------------
 model = YOLO("yolov8n.pt")
+model.to("cpu")
 
-camera = cv2.VideoCapture(0)
-
+# ---------------- FOLDERS ----------------
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-object_data = {}
-fps_value = 0
+# ---------------- DATABASE ----------------
+DB_NAME = "database.db"
 
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS uploads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            filename TEXT,
+            filetype TEXT,
+            upload_time TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# ---------------- HOME ----------------
 @app.route('/')
 def home():
     return render_template("index.html")
 
-
-
-
-# ---------------- IMAGE DETECTION ----------------
+# ======================================================
+# IMAGE UPLOAD + DETECTION  (CREATE)
+# ======================================================
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
@@ -34,8 +53,6 @@ def upload_image():
     file.save(path)
 
     image = cv2.imread(path)
-
-    # Resize for faster cloud inference
     image = cv2.resize(image, (320, 320))
 
     with torch.no_grad():
@@ -59,11 +76,23 @@ def upload_image():
     output_path = os.path.join(UPLOAD_FOLDER, "output.jpg")
     cv2.imwrite(output_path, image)
 
+    # SAVE TO DATABASE (CREATE)
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO uploads (filename, filetype, upload_time) VALUES (?, ?, ?)",
+        (file.filename, "image", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    conn.close()
+
     return jsonify({"url": "/uploads/output.jpg"})
 
+# ======================================================
+# VIDEO UPLOAD + DETECTION  (CREATE)
+# ======================================================
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
-
     if 'video' not in request.files:
         return jsonify({"error": "No file"}), 400
 
@@ -76,12 +105,9 @@ def upload_video():
     if not cap.isOpened():
         return jsonify({"error": "Cannot open video"}), 500
 
-    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-
-    if fps == 0 or fps is None:
-        fps = 20.0
+    width = 320
+    height = 320
+    fps = 20.0
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     output_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
@@ -117,22 +143,91 @@ def upload_video():
     cap.release()
     out.release()
 
+    # SAVE TO DATABASE (CREATE)
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO uploads (filename, filetype, upload_time) VALUES (?, ?, ?)",
+        (file.filename, "video", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    )
+    conn.commit()
+    conn.close()
+
     return jsonify({"url": "/uploads/output.mp4"})
 
+# ======================================================
+# READ ALL RECORDS
+# ======================================================
+@app.route('/history', methods=['GET'])
+def get_history():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM uploads ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    data = []
+    for row in rows:
+        data.append({
+            "id": row[0],
+            "filename": row[1],
+            "filetype": row[2],
+            "upload_time": row[3]
+        })
+
+    return jsonify(data)
+
+# ======================================================
+# UPDATE RECORD
+# ======================================================
+@app.route('/update/<int:record_id>', methods=['PUT'])
+def update_record(record_id):
+    data = request.get_json()
+    new_name = data.get("filename")
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE uploads SET filename=? WHERE id=?",
+        (new_name, record_id)
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Record updated successfully"})
+
+# ======================================================
+# DELETE RECORD
+# ======================================================
+@app.route('/delete/<int:record_id>', methods=['DELETE'])
+def delete_record(record_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT filename FROM uploads WHERE id=?", (record_id,))
+    row = cursor.fetchone()
+
+    if row:
+        file_path = os.path.join(UPLOAD_FOLDER, row[0])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+    cursor.execute("DELETE FROM uploads WHERE id=?", (record_id,))
+    conn.commit()
+    conn.close()
+
+    return jsonify({"message": "Record deleted successfully"})
+
+# ======================================================
+# SERVE FILES
+# ======================================================
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-
-@app.route('/analytics_data')
-def analytics_data():
-    return jsonify({
-        "objects": object_data,
-        "fps": fps_value,
-        "total": sum(object_data.values())
-    })
-
-
+# ======================================================
+# RUN APP
+# ======================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)

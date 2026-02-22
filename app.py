@@ -33,32 +33,34 @@ def upload_image():
     path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(path)
 
-image = cv2.imread(path)
+    image = cv2.imread(path)
 
-# Reduce image size for cloud speed
-image = cv2.resize(image, (320, 320))
+    # Resize for faster cloud inference
+    image = cv2.resize(image, (320, 320))
 
-with torch.no_grad():
-    results = model(image, imgsz=224, conf=0.2, device="cpu")[0]
+    with torch.no_grad():
+        results = model(image, imgsz=224, conf=0.2, device="cpu")[0]
 
     for box in results.boxes:
-        x1,y1,x2,y2 = map(int, box.xyxy[0])
+        x1, y1, x2, y2 = map(int, box.xyxy[0])
         cls = int(box.cls[0])
         label = model.names[cls]
         conf = float(box.conf[0])
 
-        cv2.rectangle(image,(x1,y1),(x2,y2),(0,255,0),2)
-        cv2.putText(image,f"{label} {conf:.2f}",
-                    (x1,y1-10),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.6,(0,255,255),2)
+        cv2.rectangle(image, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(image,
+                    f"{label} {conf:.2f}",
+                    (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 255),
+                    2)
 
     output_path = os.path.join(UPLOAD_FOLDER, "output.jpg")
     cv2.imwrite(output_path, image)
 
     return jsonify({"url": "/uploads/output.jpg"})
 
-
-# ---------------- VIDEO DETECTION ----------------
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
 
@@ -66,7 +68,6 @@ def upload_video():
         return jsonify({"error": "No file"}), 400
 
     file = request.files['video']
-
     input_path = os.path.join(UPLOAD_FOLDER, "input.mp4")
     file.save(input_path)
 
@@ -79,13 +80,11 @@ def upload_video():
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    # Fix FPS issue
     if fps == 0 or fps is None:
         fps = 20.0
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     output_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
-
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     while True:
@@ -93,7 +92,10 @@ def upload_video():
         if not ret:
             break
 
-        results = model(frame, imgsz=320)[0]
+        frame = cv2.resize(frame, (320, 320))
+
+        with torch.no_grad():
+            results = model(frame, imgsz=224, conf=0.2, device="cpu")[0]
 
         for box in results.boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -101,13 +103,14 @@ def upload_video():
             label = model.names[cls]
             conf = float(box.conf[0])
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0,255,0), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             cv2.putText(frame,
                         f"{label} {conf:.2f}",
-                        (x1, y1-10),
+                        (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.6,
-                        (0,255,255),2)
+                        (0, 255, 255),
+                        2)
 
         out.write(frame)
 

@@ -16,58 +16,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 object_data = {}
 fps_value = 0
 
-
-# ---------------- WEBCAM ----------------
-def generate_frames():
-    global object_data, fps_value
-
-    while True:
-        success, frame = camera.read()
-        if not success:
-            break
-
-        start = time.time()
-        results = model(frame, imgsz=320)[0]
-
-        object_data = {}
-
-        for box in results.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            conf = float(box.conf[0])
-            cls = int(box.cls[0])
-            label = model.names[cls]
-
-            object_data[label] = object_data.get(label, 0) + 1
-
-            cv2.rectangle(frame, (x1,y1), (x2,y2), (0,255,0),2)
-            cv2.putText(frame, f"{label} {conf:.2f}",
-                        (x1,y1-10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,(0,255,255),2)
-
-        fps_value = round(1/(time.time()-start),2)
-
-        cv2.putText(frame, f"FPS: {fps_value}",
-                    (20,40),
-                    cv2.FONT_HERSHEY_SIMPLEX,0.8,
-                    (0,255,255),2)
-
-        ret, buffer = cv2.imencode('.jpg', frame)
-        frame = buffer.tobytes()
-
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-
 @app.route('/')
 def home():
     return render_template("index.html")
 
 
-@app.route('/video')
-def video():
-    return Response(generate_frames(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 # ---------------- IMAGE DETECTION ----------------

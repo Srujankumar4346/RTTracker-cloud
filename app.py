@@ -8,11 +8,11 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# ---------------- MODEL ----------------
-model = YOLO("yolov8n.pt")
+# ---------------- MODEL (CPU ONLY + LIGHTWEIGHT) ----------------
+model = YOLO("yolov8n.pt")   # nano model
 model.to("cpu")
 
-# ---------------- FOLDERS ----------------
+# ---------------- FOLDER ----------------
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -26,7 +26,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS uploads (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT,
-            filetype TEXT,
             upload_time TEXT
         )
     """)
@@ -41,10 +40,11 @@ def home():
     return render_template("index.html")
 
 # ======================================================
-# IMAGE UPLOAD + DETECTION  (CREATE)
+# IMAGE UPLOAD + DETECTION (CREATE)
 # ======================================================
 @app.route('/upload_image', methods=['POST'])
 def upload_image():
+
     if 'image' not in request.files:
         return jsonify({"error": "No file"}), 400
 
@@ -53,10 +53,13 @@ def upload_image():
     file.save(path)
 
     image = cv2.imread(path)
-    image = cv2.resize(image, (320, 320))
 
+    # Reduce resolution for low RAM cloud
+    image = cv2.resize(image, (256, 256))
+
+    # Very small inference size to prevent memory crash
     with torch.no_grad():
-        results = model(image, imgsz=224, conf=0.2, device="cpu")[0]
+        results = model(image, imgsz=160, conf=0.2)[0]
 
     for box in results.boxes:
         x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -69,19 +72,19 @@ def upload_image():
                     f"{label} {conf:.2f}",
                     (x1, y1 - 10),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
+                    0.5,
                     (0, 255, 255),
                     2)
 
     output_path = os.path.join(UPLOAD_FOLDER, "output.jpg")
     cv2.imwrite(output_path, image)
 
-    # SAVE TO DATABASE (CREATE)
+    # SAVE TO DATABASE
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO uploads (filename, filetype, upload_time) VALUES (?, ?, ?)",
-        (file.filename, "image", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        "INSERT INTO uploads (filename, upload_time) VALUES (?, ?)",
+        (file.filename, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     )
     conn.commit()
     conn.close()
@@ -89,74 +92,7 @@ def upload_image():
     return jsonify({"url": "/uploads/output.jpg"})
 
 # ======================================================
-# VIDEO UPLOAD + DETECTION  (CREATE)
-# ======================================================
-@app.route('/upload_video', methods=['POST'])
-def upload_video():
-    if 'video' not in request.files:
-        return jsonify({"error": "No file"}), 400
-
-    file = request.files['video']
-    input_path = os.path.join(UPLOAD_FOLDER, "input.mp4")
-    file.save(input_path)
-
-    cap = cv2.VideoCapture(input_path)
-
-    if not cap.isOpened():
-        return jsonify({"error": "Cannot open video"}), 500
-
-    width = 320
-    height = 320
-    fps = 20.0
-
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
-    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-
-        frame = cv2.resize(frame, (320, 320))
-
-        with torch.no_grad():
-            results = model(frame, imgsz=224, conf=0.2, device="cpu")[0]
-
-        for box in results.boxes:
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            cls = int(box.cls[0])
-            label = model.names[cls]
-            conf = float(box.conf[0])
-
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame,
-                        f"{label} {conf:.2f}",
-                        (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 255),
-                        2)
-
-        out.write(frame)
-
-    cap.release()
-    out.release()
-
-    # SAVE TO DATABASE (CREATE)
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO uploads (filename, filetype, upload_time) VALUES (?, ?, ?)",
-        (file.filename, "video", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    )
-    conn.commit()
-    conn.close()
-
-    return jsonify({"url": "/uploads/output.mp4"})
-
-# ======================================================
-# READ ALL RECORDS
+# READ HISTORY (READ)
 # ======================================================
 @app.route('/history', methods=['GET'])
 def get_history():
@@ -171,14 +107,13 @@ def get_history():
         data.append({
             "id": row[0],
             "filename": row[1],
-            "filetype": row[2],
-            "upload_time": row[3]
+            "time": row[2]
         })
 
     return jsonify(data)
 
 # ======================================================
-# UPDATE RECORD
+# UPDATE RECORD (UPDATE)
 # ======================================================
 @app.route('/update/<int:record_id>', methods=['PUT'])
 def update_record(record_id):
@@ -197,7 +132,7 @@ def update_record(record_id):
     return jsonify({"message": "Record updated successfully"})
 
 # ======================================================
-# DELETE RECORD
+# DELETE RECORD (DELETE)
 # ======================================================
 @app.route('/delete/<int:record_id>', methods=['DELETE'])
 def delete_record(record_id):
@@ -219,11 +154,18 @@ def delete_record(record_id):
     return jsonify({"message": "Record deleted successfully"})
 
 # ======================================================
-# SERVE FILES
+# SERVE UPLOADED FILES
 # ======================================================
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
+
+# ======================================================
+# FIX ANALYTICS 404 (Dummy Route)
+# ======================================================
+@app.route('/analytics_data')
+def analytics_data():
+    return jsonify({"total": 0, "fps": 0})
 
 # ======================================================
 # RUN APP

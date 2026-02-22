@@ -85,7 +85,6 @@
         </div>
 
     </section>
-
     <!-- ================= ANALYTICS ================= -->
     <section id="analytics" class="page-section" style="display:none;">
 
@@ -93,16 +92,102 @@
             Analytics <span class="gradient">Dashboard</span>
         </h2>
 
-        <div class="analytics-grid">
+        <p style="color:#9aa4b2; margin-top:-20px;">
+            Real-time simulated analytics displaying detection metrics,
+            tracking performance, and system status.
+        </p>
 
-            <div class="card">
-                <h3>Total Objects</h3>
-                <div id="totalObjects" class="big-number">0</div>
+        <!-- Top 4 Cards -->
+        <div class="analytics-top">
+
+            <div class="analytics-card">
+                <div class="icon-box cyan">👁</div>
+                <div>
+                    <h4>Detection Confidence</h4>
+                    <h2 id="confValue">76%</h2>
+                </div>
             </div>
 
-            <div class="card">
-                <h3>FPS</h3>
-                <div id="fpsValue" class="big-number green">0</div>
+            <div class="analytics-card">
+                <div class="icon-box purple">●●</div>
+                <div>
+                    <h4>Objects Tracked</h4>
+                    <h2 id="totalObjects">5 active</h2>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="icon-box green">▢</div>
+                <div>
+                    <h4>Processing Time</h4>
+                    <h2>15 ms</h2>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="icon-box cyan">📊</div>
+                <div>
+                    <h4>Data Rate</h4>
+                    <h2 id="fpsValue">25 fps</h2>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Section -->
+        <div class="analytics-bottom">
+
+            <!-- System Performance -->
+            <div class="performance-box">
+                <h3>System Performance</h3>
+
+                <div class="circle-container">
+
+                    <div class="circle green-circle">
+                        <span>99%</span>
+                        <p>Tracking Accuracy</p>
+                    </div>
+
+                    <div class="circle cyan-circle">
+                        <span>76%</span>
+                        <p>Confidence</p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Detailed Metrics -->
+            <div class="metrics-box">
+                <h3>Detailed Metrics</h3>
+
+                <div class="metric">
+                    <label>Detection Confidence <span>76%</span></label>
+                    <div class="bar">
+                        <div class="fill cyan-fill" style="width:76%"></div>
+                    </div>
+                </div>
+
+                <div class="metric">
+                    <label>Motion Intensity <span>86%</span></label>
+                    <div class="bar">
+                        <div class="fill purple-fill" style="width:86%"></div>
+                    </div>
+                </div>
+
+                <div class="metric">
+                    <label>Tracking Accuracy <span>99%</span></label>
+                    <div class="bar">
+                        <div class="fill green-fill" style="width:99%"></div>
+                    </div>
+                </div>
+
+                <div class="metric">
+                    <label>Frame Rate Utilization <span>42%</span></label>
+                    <div class="bar">
+                        <div class="fill cyan-fill" style="width:42%"></div>
+                    </div>
+                </div>
+
             </div>
 
         </div>
@@ -113,6 +198,14 @@
     <section id="team" class="page-section" style="display:none;">
 
         <h2 class="section-title">Project Team</h2>
+
+        <!-- Department -->
+        <div style="display:flex; justify-content:center; margin:40px 0;">
+            <div class="team-card" style="text-align:center; max-width:250px;">
+                <h3>Department</h3>
+                <p>Computer Science & Engineering</p>
+            </div>
+        </div>
 
         <div class="team-grid">
 
@@ -137,9 +230,14 @@
             </div>
 
         </div>
-
-        <p class="guide">Guide: P SWETHA</p>
-
+        <!-- Guide -->
+        <div style="display:flex; justify-content:center; margin-bottom:40px;">
+            <div class="team-card" style="text-align:center; max-width:250px;">
+                <h3>Guide</h3>
+                <p>G Bruhaspathi</p>
+                <p style="font-size:14px; opacity:0.8;">Assistant Professor</p>
+            </div>
+        </div>
     </section>
 
     <!-- ================= SCRIPT ================= -->

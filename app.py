@@ -103,30 +103,53 @@ def upload_image():
 # ---------------- VIDEO DETECTION ----------------
 @app.route('/upload_video', methods=['POST'])
 def upload_video():
+
     if 'video' not in request.files:
         return jsonify({"error": "No file"}), 400
 
     file = request.files['video']
-    input_path = os.path.join(UPLOAD_FOLDER, file.filename)
+
+    input_path = os.path.join(UPLOAD_FOLDER, "input.mp4")
     file.save(input_path)
 
     cap = cv2.VideoCapture(input_path)
+
+    if not cap.isOpened():
+        return jsonify({"error": "Cannot open video"}), 500
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    # Fix FPS issue
+    if fps == 0 or fps is None:
+        fps = 20.0
+
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     output_path = os.path.join(UPLOAD_FOLDER, "output.mp4")
 
-    out = cv2.VideoWriter(output_path, fourcc, 20.0,
-                          (int(cap.get(3)), int(cap.get(4))))
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
-    while cap.isOpened():
+    while True:
         ret, frame = cap.read()
         if not ret:
             break
 
-        results = model(frame)[0]
+        results = model(frame, imgsz=320)[0]
 
         for box in results.boxes:
-            x1,y1,x2,y2 = map(int, box.xyxy[0])
-            cv2.rectangle(frame,(x1,y1),(x2,y2),(0,255,0),2)
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            cls = int(box.cls[0])
+            label = model.names[cls]
+            conf = float(box.conf[0])
+
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0,255,0), 2)
+            cv2.putText(frame,
+                        f"{label} {conf:.2f}",
+                        (x1, y1-10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0,255,255),2)
 
         out.write(frame)
 
@@ -134,7 +157,6 @@ def upload_video():
     out.release()
 
     return jsonify({"url": "/uploads/output.mp4"})
-
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -151,4 +173,5 @@ def analytics_data():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

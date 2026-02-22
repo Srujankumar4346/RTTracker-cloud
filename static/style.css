@@ -169,61 +169,157 @@ h1 {
 
 /* ================= ANALYTICS ================= */
 
-.analytics-grid {
+/* TOP 4 CARDS */
+
+.analytics-top {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 30px;
     width: 85%;
-    margin: auto;
-    margin-top: 40px;
+    margin: 50px auto;
 }
 
-.card {
+.analytics-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
     background: rgba(8, 25, 50, 0.85);
-    padding: 30px;
+    padding: 25px;
     border-radius: 20px;
-    box-shadow: 0 0 40px rgba(0, 234, 255, 0.15);
+    box-shadow: 0 0 30px rgba(0, 234, 255, 0.12);
     text-align: left;
 }
 
-.card h3 {
+.analytics-card h4 {
     color: #9aa4b2;
     font-weight: 500;
+    font-size: 14px;
 }
 
-.big-number {
-    font-size: 40px;
-    margin-top: 20px;
-    font-weight: 700;
-    color: #00eaff;
+.analytics-card h2 {
+    font-size: 26px;
+    margin-top: 8px;
+    font-weight: 600;
 }
 
-.green {
-    color: #00ff99;
-}
+/* ICON BOX */
 
-/* CIRCULAR PERFORMANCE */
-
-.circle-wrapper {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 60px;
-}
-
-.circle-box {
-    width: 220px;
-    height: 220px;
-    border-radius: 50%;
-    background: conic-gradient(#00ff99 0% 99%, #102a43 99%);
+.icon-box {
+    width: 55px;
+    height: 55px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 22px;
+}
+
+.cyan {
+    background: rgba(0, 234, 255, 0.15);
+    color: #00eaff;
+}
+
+.purple {
+    background: rgba(155, 89, 182, 0.15);
+    color: #9b59b6;
+}
+
+.green {
+    background: rgba(0, 255, 153, 0.15);
+    color: #00ff99;
+}
+
+/* BOTTOM SECTION */
+
+.analytics-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    width: 85%;
+    margin: 50px auto;
+}
+
+.performance-box,
+.metrics-box {
+    background: rgba(8, 25, 50, 0.85);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 0 40px rgba(0, 234, 255, 0.15);
+}
+
+/* CIRCULAR RINGS */
+
+.circle-container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 40px;
+}
+
+.circle {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.green-circle {
+    background: conic-gradient(#00ff99 0% 99%, #102a43 99%);
     box-shadow: 0 0 40px rgba(0, 255, 153, 0.4);
 }
 
-.circle-box span {
-    font-size: 28px;
-    font-weight: 600;
+.cyan-circle {
+    background: conic-gradient(#00eaff 0% 76%, #102a43 76%);
+    box-shadow: 0 0 40px rgba(0, 234, 255, 0.4);
+}
+
+.circle p {
+    font-size: 14px;
+    margin-top: 10px;
+    font-weight: 400;
+    color: #9aa4b2;
+}
+
+/* METRIC BARS */
+
+.metric {
+    margin-top: 25px;
+}
+
+.metric label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #cfd8dc;
+}
+
+.bar {
+    height: 10px;
+    background: #102a43;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.fill {
+    height: 10px;
+    border-radius: 8px;
+}
+
+.cyan-fill {
+    background: #00eaff;
+}
+
+.green-fill {
+    background: #00ff99;
+}
+
+.purple-fill {
+    background: #9b59b6;
 }
 
 /* ================= TEAM ================= */
